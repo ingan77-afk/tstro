@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>지구 방어 슬롯 요격전</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Pretendard:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      font-family: 'Pretendard', sans-serif;
+      background-color: #030712;
+      color: #f8fafc;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+    .font-scifi { font-family: 'Orbitron', monospace; }
+    .shake-light { animation: shake 0.15s ease-in-out; }
+    .shake-heavy { animation: shakeHeavy 0.35s ease-in-out; }
+    .shake-god { animation: shakeGod 0.7s ease-in-out; }
+    @keyframes shake {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(-3px, 2px); }
+      75% { transform: translate(3px, -2px); }
+    }
+    @keyframes shakeHeavy {
+      0%, 100% { transform: translate(0, 0); }
+      20% { transform: translate(-7px, 6px); }
+      40% { transform: translate(6px, -6px); }
+      60% { transform: translate(-5px, 4px); }
+      80% { transform: translate(4px, -3px); }
+    }
+    @keyframes shakeGod {
+      0%, 100% { transform: translate(0, 0); }
+      15% { transform: translate(-12px, 10px); }
+      30% { transform: translate(12px, -10px); }
+      45% { transform: translate(-10px, -8px); }
+      60% { transform: translate(10px, 8px); }
+      75% { transform: translate(-6px, 4px); }
+    }
+    .glow-text {
+      text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-slate-950 p-0 sm:p-4">
+
+  <!-- Mobile Container -->
+  <div id="game-container" class="relative w-full max-w-md h-[100dvh] sm:h-[860px] sm:rounded-3xl overflow-hidden bg-slate-900 border border-slate-800 flex flex-col shadow-2xl">
+    
+    <!-- Top HUD -->
+    <header class="relative z-10 px-3 py-2 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 flex flex-col gap-1.5 shrink-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+          <h1 class="text-xs font-scifi font-bold tracking-wider text-sky-400">EARTH DEFENSE</h1>
+          <span id="wave-badge" class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 text-[10px] text-amber-300 font-mono rounded">침공 강도 1.0x</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button id="btn-sound" class="px-2 py-1 bg-slate-800 text-[11px] rounded text-slate-300 border border-slate-700">
+            🔊 ON
+          </button>
+          <button id="btn-odds" class="px-2 py-1 bg-sky-950 text-[11px] rounded text-sky-300 border border-sky-700">
+            📊 확률표
+          </button>
+        </div>
+      </div>
+
+      <!-- Threat & Score -->
+      <div class="flex items-center justify-between text-xs font-semibold">
+        <div class="flex items-center gap-1 text-rose-400 font-scifi">
+          <span>위협:</span>
+          <span id="threat-counter" class="text-sm font-bold text-white">0</span>
+          <span class="text-slate-400 text-[10px]">/ 100</span>
+        </div>
+        <div>
+          <span class="text-amber-400 font-scifi text-xs">SCORE: <span id="score-display" class="font-bold text-white">0</span></span>
+        </div>
+      </div>
+
+      <!-- Threat Progress Bar -->
+      <div class="w-full bg-slate-950 rounded-full h-2 border border-slate-800 overflow-hidden">
+        <div id="threat-gauge" class="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-600 w-0 transition-all duration-200"></div>
+      </div>
+
+      <!-- Level & EXP -->
+      <div class="flex items-center gap-2 text-[10px]">
+        <span class="font-scifi font-bold text-violet-400">LV.<span id="level-display" class="text-white text-xs">1</span></span>
+        <div class="flex-1 bg-slate-950 rounded-full h-1.5 border border-slate-800 overflow-hidden">
+          <div id="exp-gauge" class="h-full bg-violet-500 w-0 transition-all duration-150"></div>
+        </div>
+        <span id="exp-text" class="text-slate-400 font-mono text-[9px]">0/10</span>
+      </div>
+    </header>
+
+    <!-- Canvas Viewport -->
+    <div class="relative flex-1 w-full overflow-hidden bg-black">
+      <canvas id="game-canvas" class="w-full h-full block"></canvas>
+
+      <!-- Danger Overlay -->
+      <div id="danger-alert" class="absolute inset-0 bg-red-600/20 pointer-events-none opacity-0 transition-opacity duration-300 flex items-center justify-center">
+        <div class="text-red-500 font-scifi font-black text-xl tracking-widest border-2 border-red-500/80 px-4 py-2 bg-black/70 animate-pulse rounded-lg">
+          ⚠️ RED ALERT ⚠️
+        </div>
+      </div>
+
+      <!-- Combo Banner -->
+      <div id="combo-banner" class="absolute top-[28%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-0 scale-75 transition-all duration-300 z-30 text-center w-full px-4">
+        <div id="combo-title" class="text-2xl font-black font-scifi glow-text text-amber-300 drop-shadow-md"></div>
+        <div id="combo-desc" class="text-xs font-bold text-white bg-black/85 py-1 px-4 rounded-full inline-block mt-1.5 border border-amber-400/50 shadow-lg"></div>
+      </div>
+    </div>
+
+    <!-- Bottom Controls -->
+    <footer class="relative z-10 p-3 bg-slate-950/90 backdrop-blur border-t border-slate-800 flex items-center justify-between gap-2 shrink-0">
+      <div class="flex items-center gap-2">
+        <button id="btn-speed" class="px-3 py-2.5 bg-slate-800 active:bg-slate-700 text-xs font-scifi font-bold text-sky-400 rounded-xl border border-slate-700">
+          1X SPEED
+        </button>
+        <button id="btn-auto" class="px-3 py-2.5 bg-slate-800 active:bg-slate-700 text-xs font-scifi font-bold text-slate-300 rounded-xl border border-slate-700">
+          AUTO: OFF
+        </button>
+      </div>
+
+      <button id="btn-spin" class="flex-1 max-w-[200px] py-3.5 bg-gradient-to-r from-sky-500 via-indigo-600 to-purple-600 active:scale-95 text-white font-scifi font-black text-base rounded-2xl shadow-lg shadow-sky-500/25 border border-sky-400/30 transition-transform tracking-wider">
+        SPIN
+      </button>
+    </footer>
+
+    <!-- Level-up 3-Card Modal -->
+    <div id="modal-levelup" class="absolute inset-0 bg-black/85 backdrop-blur-md z-40 hidden flex-col items-center justify-center p-4">
+      <div class="text-center mb-4">
+        <div class="text-amber-400 font-scifi font-extrabold text-2xl tracking-wider animate-bounce">LEVEL UP!</div>
+        <div class="text-xs text-slate-300 mt-1">강화할 심볼 확률 카드를 1장 선택하세요</div>
+      </div>
+      <div id="cards-container" class="w-full flex flex-col gap-2.5 max-w-xs"></div>
+    </div>
+
+    <!-- Odds Table Modal -->
+    <div id="modal-odds" class="absolute inset-0 bg-black/85 backdrop-blur-md z-40 hidden flex-col p-5">
+      <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+        <h2 class="text-base font-scifi font-bold text-sky-400">심볼 출현 확률표 (ODDS)</h2>
+        <button id="btn-close-odds" class="px-2 py-1 bg-slate-800 text-slate-400 hover:text-white rounded text-xs">닫기 ✕</button>
+      </div>
+      <div class="text-[11px] text-slate-400 mb-2">
+        ※ 레벨업 카드로 가중치(Weight)를 올리면 상대 비율에 따라 실시간 확률이 변경됩니다.
+      </div>
+      <div id="odds-list" class="flex-1 overflow-y-auto space-y-2 pr-1 text-xs"></div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="modal-gameover" class="absolute inset-0 bg-red-950/90 backdrop-blur-lg z-50 hidden flex-col items-center justify-center p-6 text-center">
+      <div class="text-red-500 font-scifi font-black text-3xl mb-2 tracking-widest animate-pulse">EARTH DESTROYED</div>
+      <div class="text-xs text-rose-200 mb-6">소행성 100개가 궤도에 누적되어 지구가 파괴되었습니다.</div>
+      <div class="bg-slate-900/80 border border-red-500/30 rounded-2xl p-4 w-full max-w-xs mb-6 text-left">
+        <div class="flex justify-between text-xs text-slate-400 mb-1">
+          <span>최종 점수:</span>
+          <span id="final-score" class="font-bold text-white font-scifi">0</span>
+        </div>
+        <div class="flex justify-between text-xs text-slate-400 mb-1">
+          <span>도달 레벨:</span>
+          <span id="final-level" class="font-bold text-violet-400 font-scifi">LV.1</span>
+        </div>
+        <div class="flex justify-between text-xs text-slate-400">
+          <span>성립 라인:</span>
+          <span id="final-lines" class="font-bold text-sky-400 font-scifi">0</span>
+        </div>
+      </div>
+      <button id="btn-restart" class="w-full max-w-xs py-3.5 bg-gradient-to-r from-red-600 to-rose-600 active:scale-95 text-white font-scifi font-black text-sm rounded-2xl shadow-lg">
+        DEFEND AGAIN
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      toggle() {
+        this.enabled = !this.enabled;
+        return this.enabled;
+      }
+      playSpin() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.08);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      }
+      playReelStop() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+      }
+      playLineHit(pitchStep = 0) {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const notes = [440, 523, 659, 783, 880, 1046, 1174, 1318];
+        const freq = notes[Math.min(pitchStep, notes.length - 1)];
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+      playCannon() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.22);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.22);
+      }
+      playExplosion() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(90, now);
+        osc.frequency.exponentialRampToValueAtTime(20, now + 0.26);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+      playLevelUp() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          gain.gain.setValueAtTime(0.16, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.2);
+        });
+      }
+      playGodLock() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(1760, now + 0.3);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      }
+    }
+    const sound = new SoundEngine();
+
+    const SYMBOLS = [
+      { id: 'cherry', icon: '🍒', name: '체리', baseWeight: 44, weight: 44, level: 1, color: '#f43f5e', attackType: 'barrage_heavy', desc: '10연발 래피드 개틀링 건' },
+      { id: 'lemon', icon: '🍋', name: '레몬', baseWeight: 38, weight: 38, level: 1, color: '#facc15', attackType: 'laser_wide', desc: '5줄기 관통 플라즈마 빔' },
+      { id: 'orange', icon: '🍊', name: '오렌지', baseWeight: 32, weight: 32, level: 1, color: '#fb923c', attackType: 'missile_swarm', desc: '정밀 유도 미사일 10연발' },
+      { id: 'grape', icon: '🍇', name: '포도', baseWeight: 19, weight: 19, level: 1, color: '#c084fc', attackType: 'cluster_bomb', desc: '분열형 성단 집속탄 (21발 확산 폭격)' },
+      { id: 'watermelon', icon: '🍉', name: '수박', baseWeight: 14, weight: 14, level: 1, color: '#22c55e', attackType: 'shockwave', desc: '대기권 반발 충격파 (적 넉백+데미지)' },
+      { id: 'bell', icon: '🔔', name: '벨', baseWeight: 11, weight: 11, level: 1, color: '#eab308', attackType: 'emp_freeze', desc: '전역 EMP 빙결 & 방전' },
+      { id: 'bar', icon: '🍫', name: '바 (BAR)', baseWeight: 9, weight: 9, level: 1, color: '#38bdf8', attackType: 'railgun', desc: '트리플 궤도 레일건' },
+      { id: 'seven', icon: '7️⃣', name: '트리플 세븐', baseWeight: 6, weight: 6, level: 1, color: '#ef4444', attackType: 'hyper_beam', desc: '7연발 성운 궤도포' },
+      { id: 'diamond', icon: '💎', name: '다이아', baseWeight: 5, weight: 5, level: 1, color: '#67e8f9', attackType: 'nuke_core', desc: '초광역 특이점 프리즘 핵' }
+    ];
+
+    const PAYLINES = [
+      { id: 'h1', name: '가로 상단', points: [[0, 0], [0, 1], [0, 2]] },
+      { id: 'h2', name: '가로 중단', points: [[1, 0], [1, 1], [1, 2]] },
+      { id: 'h3', name: '가로 하단', points: [[2, 0], [2, 1], [2, 2]] },
+      { id: 'v1', name: '세로 좌측', points: [[0, 0], [1, 0], [2, 0]] },
+      { id: 'v2', name: '세로 중앙', points: [[0, 1], [1, 1], [2, 1]] },
+      { id: 'v3', name: '세로 우측', points: [[0, 2], [1, 2], [2, 2]] },
+      { id: 'd1', name: '대각 하향', points: [[0, 0], [1, 1], [2, 2]] },
+      { id: 'd2', name: '대각 상향', points: [[2, 0], [1, 1], [0, 2]] }
+    ];
+
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('game-container');
+
+    let width = 0;
+    let height = 0;
+
+    const state = {
+      score: 0,
+      level: 1,
+      exp: 0,
+      expNext: 10,
+      linesCompleted: 0,
+      isGameOver: false,
+      isPausedForUpgrade: false,
+      isLevelUpPending: false,
+      isActionResolving: false,
+      isSpinning: false,
+      isAuto: false,
+      isFast: false,
+      hitStopFrames: 0,
+      earthShieldPulse: 0,
+      godJackpotActive: false,
+      godLockTargets: [],
+
+      // Progressive Difficulty Scaling (난이도 곡선 완만화)
+      gameTimeElapsed: 0,
+      spawnInterval: 1300, // 기본 2.5초 -> 1.3초로 대폭 단축
+      speedMultiplier: 1.0,
+      currentDifficulty: 1.0,
+
+      asteroids: [],
+      projectiles: [],
+      particles: [],
+      stars: [],
+
+      grid: [
+        [null, null, null],
+        [null, null, null],
+        [null, null, null]
+      ],
+      reelsSpinning: [false, false, false],
+      activeDrawLine: null,
+      allCompletedLines: []
+    };
+
+    function getRandomSymbol() {
+      const totalWeight = SYMBOLS.reduce((sum, s) => sum + s.weight, 0);
+      let rand = Math.random() * totalWeight;
+      for (const s of SYMBOLS) {
+        if (rand < s.weight) return s;
+        rand -= s.weight;
+      }
+      return SYMBOLS[0];
+    }
+
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        state.grid[r][c] = getRandomSymbol();
+      }
+    }
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      canvas.width = width * window.devicePixelRatio;
+      canvas.height = height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      state.stars = [];
+      for (let i = 0; i < 40; i++) {
+        state.stars.push({
+          x: Math.random() * width,
+          y: Math.random() * (height * 0.52),
+          size: Math.random() * 1.5 + 0.5,
+          alpha: Math.random() * 0.7 + 0.3
+        });
+      }
+    }
+    window.addEventListener('resize', resize);
+
+    function updateDifficulty(deltaTime) {
+      if (state.isGameOver || state.isPausedForUpgrade) return;
+      state.gameTimeElapsed += deltaTime;
+
+      // 난이도 상승 속도를 이전 대비 60% 수준으로 완화
+      const timeFactor = Math.min(2.0, 1.0 + (state.gameTimeElapsed / 120000));
+      const levelFactor = 1.0 + (state.level - 1) * 0.05;
+      const combinedDifficulty = timeFactor * levelFactor;
+      state.currentDifficulty = combinedDifficulty;
+
+      state.speedMultiplier = Math.min(1.8, 1.0 + (combinedDifficulty - 1.0) * 0.3);
+      state.spawnInterval = Math.max(650, 1300 - (combinedDifficulty - 1.0) * 450);
+
+      const badge = document.getElementById('wave-badge');
+      if (badge) {
+        badge.textContent = `침공 강도 ${combinedDifficulty.toFixed(1)}x`;
+        if (combinedDifficulty >= 2.0) {
+          badge.className = 'px-1.5 py-0.5 bg-rose-950 border border-rose-700 text-[10px] text-rose-300 font-mono rounded';
+        } else if (combinedDifficulty >= 1.5) {
+          badge.className = 'px-1.5 py-0.5 bg-amber-950 border border-amber-700 text-[10px] text-amber-300 font-mono rounded';
+        }
+      }
+    }
+
+    let lastAsteroidSpawn = 0;
+    function spawnAsteroid() {
+      if (state.isGameOver || state.isPausedForUpgrade) return;
+      if (state.asteroids.length >= 100) return;
+
+      const diff = state.currentDifficulty || 1.0;
+
+      // 동시 침공 편대 규모 대폭 상향 (기본 2~3기, 고난이도 시 3~4기)
+      let spawnCount = 2;
+      if (diff >= 2.5) {
+        spawnCount = Math.random() < 0.5 ? 4 : 3;
+      } else if (diff >= 1.8) {
+        spawnCount = Math.random() < 0.4 ? 3 : 2;
+      } else {
+        spawnCount = Math.random() < 0.3 ? 3 : 2;
+      }
+
+      for (let s = 0; s < spawnCount; s++) {
+        if (state.asteroids.length >= 100) break;
+
+        const bigChance = Math.min(0.35, 0.15 + (diff - 1.0) * 0.12);
+        const isBig = Math.random() < bigChance;
+        const size = isBig ? (Math.random() * 8 + 22) : (Math.random() * 6 + 12);
+        const colors = ['#94a3b8', '#ea580c', '#38bdf8', '#84cc16', '#e11d48'];
+        const chosenColor = colors[Math.floor(Math.random() * colors.length)];
+
+        // HP 상승폭 경감
+        const baseHp = isBig ? 2 : 1;
+        const hpBonus = Math.floor((diff - 1.0) * (isBig ? 1.4 : 0.6));
+        const finalHp = Math.max(1, baseHp + hpBonus);
+
+        state.asteroids.push({
+          x: Math.random() * (width - 60) + 30,
+          y: -25 - (s * 18),
+          targetY: Math.random() * (height * 0.34) + 35,
+          vx: (Math.random() - 0.5) * 0.4 * state.speedMultiplier,
+          vy: (Math.random() * 0.9 + 0.5) * state.speedMultiplier, // 낙하 속도 완화
+          size: size,
+          hp: finalHp,
+          maxHp: finalHp,
+          isBig: isBig,
+          color: chosenColor,
+          angle: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 0.03,
+          isFrozen: false,
+          freezeTimer: 0
+        });
+      }
+
+      updateThreatUI();
+    }
+
+    function updateThreatUI() {
+      const count = state.asteroids.length;
+      document.getElementById('threat-counter').textContent = count;
+      const pct = Math.min(100, (count / 100) * 100);
+      document.getElementById('threat-gauge').style.width = pct + '%';
+
+      const alertEl = document.getElementById('danger-alert');
+      if (count >= 80) {
+        alertEl.classList.remove('opacity-0');
+        alertEl.classList.add('opacity-100');
+      } else {
+        alertEl.classList.add('opacity-0');
+        alertEl.classList.remove('opacity-100');
+      }
+
+      if (count >= 100 && !state.isGameOver) {
+        triggerGameOver();
+      }
+    }
+
+    function triggerGameOver() {
+      state.isGameOver = true;
+      state.isAuto = false;
+      document.getElementById('final-score').textContent = state.score.toLocaleString();
+      document.getElementById('final-level').textContent = 'LV.' + state.level;
+      document.getElementById('final-lines').textContent = state.linesCompleted;
+      document.getElementById('modal-gameover').classList.remove('hidden');
+      document.getElementById('modal-gameover').classList.add('flex');
+    }
+
+    function triggerShake(type = 'light') {
+      container.classList.remove('shake-light', 'shake-heavy', 'shake-god');
+      const cls = type === 'god' ? 'shake-god' : (type === 'heavy' ? 'shake-heavy' : 'shake-light');
+      container.classList.add(cls);
+
+      if (navigator.vibrate) {
+        try {
+          if (type === 'god') navigator.vibrate([100, 50, 100, 50, 200]);
+          else if (type === 'heavy') navigator.vibrate([60, 40, 80]);
+          else navigator.vibrate(35);
+        } catch (e) {}
+      }
+
+      const duration = type === 'god' ? 700 : (type === 'heavy' ? 350 : 150);
+      setTimeout(() => {
+        container.classList.remove('shake-light', 'shake-heavy', 'shake-god');
+      }, duration);
+    }
+
+    function showComboBanner(title, desc) {
+      const banner = document.getElementById('combo-banner');
+      document.getElementById('combo-title').textContent = title;
+      document.getElementById('combo-desc').textContent = desc;
+
+      banner.classList.remove('opacity-0', 'scale-75');
+      banner.classList.add('opacity-100', 'scale-100');
+
+      setTimeout(() => {
+        banner.classList.add('opacity-0', 'scale-75');
+        banner.classList.remove('opacity-100', 'scale-100');
+      }, 2200);
+    }
+
+    function createExplosion(x, y, color, count = 14) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3.5 + 1.2;
+        state.particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: Math.random() * 3 + 1.5,
+          color: color,
+          alpha: 1.0,
+          decay: Math.random() * 0.04 + 0.02
+        });
+      }
+    }
+
+    function destroyAsteroid(ast) {
+      createExplosion(ast.x, ast.y, ast.color, 16);
+      sound.playExplosion();
+
+      const idx = state.asteroids.indexOf(ast);
+      if (idx !== -1) {
+        state.asteroids.splice(idx, 1);
+      }
+      updateThreatUI();
+
+      state.score += 200;
+      document.getElementById('score-display').textContent = state.score.toLocaleString();
+      addEXP(1);
+    }
+
+    function addEXP(amt) {
+      state.exp += amt;
+      if (state.exp >= state.expNext) {
+        state.exp -= state.expNext;
+        state.level++;
+        state.expNext = Math.floor(state.expNext * 1.25) + 2; // 레벨업 필요치 완화
+        state.isLevelUpPending = true;
+
+        sound.playLevelUp();
+        updateExpUI();
+
+        if (!state.isActionResolving && !state.isSpinning) {
+          presentLevelUpCards();
+        }
+      } else {
+        updateExpUI();
+      }
+    }
+
+    function updateExpUI() {
+      document.getElementById('level-display').textContent = state.level;
+      const pct = Math.min(100, (state.exp / state.expNext) * 100);
+      document.getElementById('exp-gauge').style.width = pct + '%';
+      document.getElementById('exp-text').textContent = `${state.exp}/${state.expNext}`;
+    }
+
+    function presentLevelUpCards() {
+      state.isPausedForUpgrade = true;
+      state.isLevelUpPending = false;
+
+      const modal = document.getElementById('modal-levelup');
+      const container = document.getElementById('cards-container');
+      container.innerHTML = '';
+
+      const shuffled = [...SYMBOLS].sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, 3);
+
+      selected.forEach(sym => {
+        const card = document.createElement('div');
+        card.className = 'w-full p-3 bg-slate-900/90 border border-slate-700 hover:border-sky-400 active:scale-95 rounded-2xl cursor-pointer transition-all flex items-center justify-between shadow-lg';
+        
+        const totalWeight = SYMBOLS.reduce((sum, s) => sum + s.weight, 0);
+        const currentPct = ((sym.weight / totalWeight) * 100).toFixed(1);
+        // 가중치 보너스 소폭 상향 (+5 ~ +7 WT)
+        const bonusWeight = Math.max(6, Math.floor(sym.baseWeight * 0.38));
+        
+        card.innerHTML = `
+          <div class="flex items-center gap-3">
+            <span class="text-3xl">${sym.icon}</span>
+            <div class="text-left">
+              <div class="font-bold text-sm text-white flex items-center gap-1.5">
+                ${sym.name} <span class="text-[10px] text-amber-400 font-scifi">LV.${sym.level}</span>
+              </div>
+              <div class="text-[11px] text-slate-400">${sym.desc}</div>
+              <div class="text-[10px] text-sky-400 font-mono mt-0.5">현재 확률: ${currentPct}%</div>
+            </div>
+          </div>
+          <div class="px-2.5 py-1 bg-violet-950/80 border border-violet-500/50 text-violet-300 font-scifi font-bold text-[11px] rounded-lg">
+            +${bonusWeight} WT
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          sym.weight += bonusWeight;
+          sym.level += 1;
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+          state.isPausedForUpgrade = false;
+          updateOddsModalList();
+
+          if (state.isAuto && !state.isGameOver) {
+            setTimeout(spin, 400);
+          }
+        });
+
+        container.appendChild(card);
+      });
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function executeLineAttack(symbol) {
+      const earthX = width / 2;
+      const earthY = height * 0.44;
+      state.earthShieldPulse = 1.0;
+
+      switch (symbol.attackType) {
+        case 'barrage_heavy':
+          // 체리: 전 화면을 혼자 쓸어버리던 20발x3데미지 -> 경쾌한 10발x1.5데미지 연사 개틀링으로 밸런스 조정
+          sound.playCannon();
+          for (let i = 0; i < 10; i++) {
+            setTimeout(() => {
+              const sx = earthX + (Math.random() - 0.5) * (width * 0.4);
+              const sy = earthY - 5;
+              const target = state.asteroids[Math.floor(Math.random() * state.asteroids.length)];
+              const targetX = target ? target.x : (width * 0.2 + Math.random() * width * 0.6);
+              const targetY = target ? target.y : 30;
+              const angle = Math.atan2(targetY - sy, targetX - sx);
+              const speed = 10 + Math.random() * 2;
+
+              state.projectiles.push({
+                x: sx,
+                y: sy,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: 4,
+                color: '#f43f5e',
+                damage: 1.5,
+                type: 'direct'
+              });
+            }, i * 35);
+          }
+          break;
+
+        case 'laser_wide':
+          // 레몬: 5줄기 플라즈마 레이저 빔
+          sound.playCannon();
+          for (let beam = -2; beam <= 2; beam++) {
+            const angle = -Math.PI / 2 + beam * 0.18;
+            state.projectiles.push({
+              x: earthX + beam * 24,
+              y: earthY - 15,
+              vx: Math.cos(angle) * 14,
+              vy: Math.sin(angle) * 14,
+              size: 6,
+              color: '#facc15',
+              damage: 3,
+              type: 'pierce'
+            });
+          }
+          break;
+
+        case 'missile_swarm':
+          // 오렌지: 10연발 정밀 유도탄
+          sound.playCannon();
+          for (let i = 0; i < 10; i++) {
+            setTimeout(() => {
+              const sx = (i % 2 === 0) ? width * 0.15 : width * 0.85;
+              const sy = earthY - 10;
+              const initialAngle = (i % 2 === 0) ? -Math.PI * 0.75 : -Math.PI * 0.25;
+              const target = state.asteroids[i % Math.max(1, state.asteroids.length)];
+
+              state.projectiles.push({
+                x: sx,
+                y: sy,
+                vx: Math.cos(initialAngle) * 7.5,
+                vy: Math.sin(initialAngle) * 7.5,
+                size: 5,
+                color: '#fb923c',
+                damage: 2,
+                type: 'missile',
+                target: target
+              });
+            }, i * 35);
+          }
+          break;
+
+        case 'cluster_bomb':
+          // 포도: 모탄 3발 발사 -> 상공에서 각각 7발씩 총 21발의 자탄으로 화려하게 분열 폭격!
+          sound.playCannon();
+          [-width * 0.25, 0, width * 0.25].forEach((offsetX, idx) => {
+            setTimeout(() => {
+              state.projectiles.push({
+                x: earthX + offsetX,
+                y: earthY - 10,
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: -7.5 - Math.random() * 2,
+                size: 8,
+                color: '#c084fc',
+                damage: 2,
+                type: 'cluster_parent',
+                timer: 24 + Math.random() * 8
+              });
+            }, idx * 70);
+          });
+          break;
+
+        case 'shockwave':
+          // 수박: 대기권 충격파 -> 전 화면 소행성을 위로 넉백시키고 데미지
+          sound.playExplosion();
+          triggerShake('heavy');
+          state.asteroids.forEach(ast => {
+            ast.y = Math.max(20, ast.y - 25);
+            ast.hp -= 2;
+          });
+          createExplosion(earthX, earthY - 40, '#22c55e', 28);
+          break;
+
+        case 'emp_freeze':
+          // 벨: EMP 방전 및 장시간 빙결
+          sound.playLineHit(4);
+          state.asteroids.forEach(ast => {
+            ast.isFrozen = true;
+            ast.freezeTimer = 180;
+            ast.hp -= 2;
+          });
+          createExplosion(earthX, earthY - 50, '#eab308', 20);
+          break;
+
+        case 'railgun':
+          // 바: 트리플 고속 관통 레일건
+          sound.playCannon();
+          [-width * 0.25, 0, width * 0.25].forEach(offset => {
+            state.projectiles.push({
+              x: earthX + offset,
+              y: earthY - 15,
+              vx: 0,
+              vy: -22,
+              size: 6.5,
+              color: '#38bdf8',
+              damage: 5,
+              type: 'pierce'
+            });
+          });
+          break;
+
+        case 'hyper_beam':
+          // 세븐: 7연속 궤도 타격
+          sound.playCannon();
+          triggerShake('heavy');
+          state.asteroids.slice(0, 6).forEach(target => destroyAsteroid(target));
+          createExplosion(earthX, height * 0.2, '#ef4444', 30);
+          break;
+
+        case 'nuke_core':
+        default:
+          // 다이아: 초광역 특이점 핵폭탄
+          sound.playExplosion();
+          triggerShake('heavy');
+          state.asteroids.slice(0, 8).forEach(ast => destroyAsteroid(ast));
+          createExplosion(earthX, height * 0.22, '#67e8f9', 36);
+          break;
+      }
+    }
+
+    async function executeGodBusterWipeout() {
+      state.godJackpotActive = true;
+      state.hitStopFrames = 45;
+      sound.playGodLock();
+
+      // 전장의 모든 소행성 락온
+      state.godLockTargets = [...state.asteroids];
+      triggerShake('heavy');
+
+      // 1. 락온 집중 시간 (시간 정지 느낌)
+      await new Promise(r => setTimeout(r, 550));
+
+      // 2. 지구 쉴드 황금빛 극대화
+      state.earthShieldPulse = 2.0;
+
+      // 3. 모든 심볼들의 능력을 동시다발적으로 일제 전탄 발사! (ALL-ARSENAL OMNIBUS)
+      const earthX = width / 2;
+      const earthY = height * 0.44;
+
+      // (1) 벨 EMP & 수박 충격파 즉시 가동
+      sound.playLineHit(5);
+      state.asteroids.forEach(ast => {
+        ast.isFrozen = true;
+        ast.freezeTimer = 240;
+        ast.y = Math.max(15, ast.y - 30);
+      });
+      createExplosion(earthX, earthY - 40, '#22c55e', 35);
+      createExplosion(earthX, earthY - 40, '#eab308', 35);
+
+      // (2) 바(BAR) 트리플 레일건 & 레몬 5줄기 관통 레이저 동시 격발
+      sound.playCannon();
+      for (let beam = -3; beam <= 3; beam++) {
+        const angle = -Math.PI / 2 + beam * 0.16;
+        state.projectiles.push({
+          x: earthX + beam * 22,
+          y: earthY - 15,
+          vx: Math.cos(angle) * 16,
+          vy: Math.sin(angle) * 16,
+          size: 7,
+          color: '#facc15',
+          damage: 5,
+          type: 'pierce'
+        });
+      }
+      [-width * 0.3, -width * 0.1, width * 0.1, width * 0.3].forEach(offset => {
+        state.projectiles.push({
+          x: earthX + offset,
+          y: earthY - 20,
+          vx: 0,
+          vy: -24,
+          size: 8,
+          color: '#38bdf8',
+          damage: 8,
+          type: 'pierce'
+        });
+      });
+
+      // (3) 체리 개틀링 탄막 + 오렌지 유도 미사일 스웜 16발 방사
+      for (let i = 0; i < 16; i++) {
+        setTimeout(() => {
+          // 체리 탄환
+          const sx = earthX + (Math.random() - 0.5) * (width * 0.7);
+          const sy = earthY - 5;
+          const target = state.asteroids[i % Math.max(1, state.asteroids.length)];
+          const targetX = target ? target.x : (width * 0.2 + Math.random() * width * 0.6);
+          const targetY = target ? target.y : 20;
+          const angle = Math.atan2(targetY - sy, targetX - sx);
+
+          state.projectiles.push({
+            x: sx,
+            y: sy,
+            vx: Math.cos(angle) * 13,
+            vy: Math.sin(angle) * 13,
+            size: 5,
+            color: '#f43f5e',
+            damage: 3,
+            type: 'direct'
+          });
+
+          // 오렌지 유도 미사일
+          const missileAngle = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.2;
+          state.projectiles.push({
+            x: (i % 2 === 0) ? width * 0.1 : width * 0.9,
+            y: earthY - 10,
+            vx: Math.cos(missileAngle) * 9,
+            vy: Math.sin(missileAngle) * 9,
+            size: 6,
+            color: '#fb923c',
+            damage: 3,
+            type: 'missile',
+            target: target
+          });
+        }, i * 25);
+      }
+
+      // (4) 포도 성단 집속탄 4발 연속 솟구쳐서 공중 자탄 28발 살포
+      for (let g = 0; g < 4; g++) {
+        setTimeout(() => {
+          state.projectiles.push({
+            x: earthX + (g - 1.5) * (width * 0.22),
+            y: earthY - 15,
+            vx: (Math.random() - 0.5) * 2,
+            vy: -8 - Math.random() * 2,
+            size: 9,
+            color: '#c084fc',
+            damage: 3,
+            type: 'cluster_parent',
+            timer: 16
+          });
+        }, g * 60);
+      }
+
+      // (5) 세븐 궤도 레이저 & 다이아몬드 핵폭발 융단 폭격
+      await new Promise(r => setTimeout(r, 450));
+      triggerShake('god');
+      sound.playExplosion();
+
+      // 전장 상공 전체에 다이아몬드 & 세븐 섬광 연쇄 폭발
+      for (let exp = 0; exp < 8; exp++) {
+        setTimeout(() => {
+          const rx = Math.random() * width;
+          const ry = Math.random() * (height * 0.35) + 30;
+          createExplosion(rx, ry, '#ef4444', 30);
+          createExplosion(rx, ry, '#67e8f9', 30);
+          createExplosion(rx, ry, '#ffffff', 20);
+        }, exp * 45);
+      }
+
+      // 4. 전원 동시 격추 처리
+      await new Promise(r => setTimeout(r, 400));
+      const targetsToDestroy = [...state.asteroids];
+      targetsToDestroy.forEach((ast, idx) => {
+        setTimeout(() => {
+          createExplosion(ast.x, ast.y, '#f59e0b', 20);
+          createExplosion(ast.x, ast.y, '#ffffff', 15);
+          destroyAsteroid(ast);
+        }, idx * 15);
+      });
+
+      state.godLockTargets = [];
+      state.godJackpotActive = false;
+    }
+
+    function checkWinningLines() {
+      const wins = [];
+      PAYLINES.forEach(line => {
+        const [p1, p2, p3] = line.points;
+        const sym1 = state.grid[p1[0]][p1[1]];
+        const sym2 = state.grid[p2[0]][p2[1]];
+        const sym3 = state.grid[p3[0]][p3[1]];
+
+        if (sym1 && sym2 && sym3 && sym1.id === sym2.id && sym2.id === sym3.id) {
+          wins.push({ line: line, symbol: sym1 });
+        }
+      });
+      return wins;
+    }
+
+    function isFullBoardMatch() {
+      const first = state.grid[0][0];
+      if (!first) return false;
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          if (!state.grid[r][c] || state.grid[r][c].id !== first.id) return false;
+        }
+      }
+      return true;
+    }
+
+    async function evaluateResults() {
+      state.isActionResolving = true;
+      const wins = checkWinningLines();
+      const isGodCover = isFullBoardMatch() || wins.length === 8;
+
+      if (wins.length > 0) {
+        state.linesCompleted += wins.length;
+
+        state.allCompletedLines = [];
+        for (let i = 0; i < wins.length; i++) {
+          const win = wins[i];
+          state.activeDrawLine = win.line;
+          state.allCompletedLines.push(win.line);
+
+          sound.playLineHit(i + 1);
+          triggerShake(isGodCover ? 'god' : (wins.length >= 2 ? 'heavy' : 'light'));
+          state.hitStopFrames = isGodCover ? 12 : 6;
+
+          const lineDelay = state.isFast ? 180 : 320;
+          await new Promise(r => setTimeout(r, lineDelay));
+        }
+
+        await new Promise(r => setTimeout(r, state.isFast ? 120 : 200));
+
+        if (isGodCover) {
+          showComboBanner('👑 APOCALYPTIC GOD BUSTER', '9칸 올커버 달성! 전 행성 타겟 락온 & 즉시 소멸!');
+          await executeGodBusterWipeout();
+        } else if (wins.length >= 5) {
+          showComboBanner('🌟 HYPER NOVA BURST', '5+ 라인 집중 폭발! 상공 전역 화력 융단 포격!');
+        } else if (wins.length >= 3) {
+          showComboBanner('💥 MEGA BARRAGE', '3~4 라인 동시 격발! 궤도 포격 지원 개시!');
+        } else if (wins.length === 2) {
+          showComboBanner('⚡ DUAL OVERDRIVE', '2라인 동시 연쇄 요격 포화!');
+        } else {
+          showComboBanner('🎯 SINGLE STRIKE', '단일 페이라인 요격 개시');
+        }
+
+        if (!isGodCover) {
+          for (let i = 0; i < wins.length; i++) {
+            const win = wins[i];
+            executeLineAttack(win.symbol);
+            if (wins.length > 1) {
+              await new Promise(r => setTimeout(r, 120));
+            }
+          }
+        }
+
+        await new Promise(r => setTimeout(r, state.isFast ? 350 : 600));
+
+        state.activeDrawLine = null;
+        state.allCompletedLines = [];
+      }
+
+      state.isActionResolving = false;
+      state.isSpinning = false;
+      document.getElementById('btn-spin').disabled = false;
+
+      if (state.isLevelUpPending) {
+        presentLevelUpCards();
+      }
+
+      if (state.isAuto && !state.isGameOver && !state.isPausedForUpgrade && !state.isLevelUpPending) {
+        setTimeout(spin, state.isFast ? 350 : 750);
+      }
+    }
+
+    function spin() {
+      if (state.isSpinning || state.isGameOver || state.isPausedForUpgrade || state.isActionResolving) return;
+
+      sound.init();
+      sound.playSpin();
+
+      state.isSpinning = true;
+      state.activeDrawLine = null;
+      state.allCompletedLines = [];
+      document.getElementById('btn-spin').disabled = true;
+
+      const reelStops = [
+        state.isFast ? 300 : 500,
+        state.isFast ? 450 : 750,
+        state.isFast ? 600 : 1000
+      ];
+
+      reelStops.forEach((stopTime, colIndex) => {
+        state.reelsSpinning[colIndex] = true;
+        setTimeout(() => {
+          for (let row = 0; row < 3; row++) {
+            // 마지막 3열 멈출 때 앞선 1, 2열과 일치할 경우 리치(Reach) 확률 52% 보정
+            if (colIndex === 2 && state.grid[row][0] && state.grid[row][1] && state.grid[row][0].id === state.grid[row][1].id && Math.random() < 0.52) {
+              state.grid[row][colIndex] = state.grid[row][0];
+            } else {
+              state.grid[row][colIndex] = getRandomSymbol();
+            }
+          }
+          state.reelsSpinning[colIndex] = false;
+          sound.playReelStop();
+          triggerShake('light');
+
+          if (colIndex === 2) {
+            setTimeout(evaluateResults, 120);
+          }
+        }, stopTime);
+      });
+    }
+
+    function renderBattlefield(now) {
+      const fieldH = height * 0.52;
+
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, width, fieldH);
+
+      state.stars.forEach(s => {
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+      });
+
+      const earthX = width / 2;
+      const earthY = fieldH - 20;
+      const earthR = width * 0.48;
+
+      ctx.save();
+      const glowGrad = ctx.createRadialGradient(earthX, earthY + 70, earthR * 0.9, earthX, earthY + 70, earthR * 1.3);
+      glowGrad.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
+      glowGrad.addColorStop(0.5, 'rgba(14, 165, 233, 0.15)');
+      glowGrad.addColorStop(1, 'rgba(2, 6, 23, 0)');
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(earthX, earthY + 70, earthR * 1.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(earthX, earthY + 70, earthR, 0, Math.PI * 2);
+      ctx.clip();
+
+      const oceanGrad = ctx.createRadialGradient(earthX - earthR * 0.3, earthY - earthR * 0.2, earthR * 0.2, earthX, earthY + 70, earthR);
+      oceanGrad.addColorStop(0, '#0284c7');
+      oceanGrad.addColorStop(0.6, '#0369a1');
+      oceanGrad.addColorStop(1, '#082f49');
+      ctx.fillStyle = oceanGrad;
+      ctx.fillRect(earthX - earthR, earthY + 70 - earthR, earthR * 2, earthR * 2);
+
+      ctx.fillStyle = '#16a34a';
+      const contOff = (now * 0.005) % (earthR * 2.5);
+      [
+        { ox: -0.4, oy: -0.2, r: 45 },
+        { ox: 0.1, oy: -0.3, r: 55 },
+        { ox: 0.5, oy: -0.1, r: 40 },
+        { ox: -0.2, oy: 0.15, r: 50 },
+        { ox: 0.3, oy: 0.1, r: 42 }
+      ].forEach(c => {
+        const cx = earthX + (c.ox * earthR + contOff) % (earthR * 2) - earthR;
+        const cy = earthY + 70 + c.oy * earthR;
+        ctx.beginPath();
+        ctx.arc(cx, cy, c.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      for (let i = 0; i < 4; i++) {
+        const clX = earthX + (i * 70 + now * 0.012) % (earthR * 2) - earthR;
+        const clY = earthY + 70 - 40 + i * 20;
+        ctx.beginPath();
+        ctx.ellipse(clX, clY, 35, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+
+      if (state.earthShieldPulse > 0) {
+        state.earthShieldPulse = Math.max(0, state.earthShieldPulse - 0.04);
+        ctx.save();
+        ctx.strokeStyle = `rgba(56, 189, 248, ${state.earthShieldPulse})`;
+        ctx.lineWidth = 8 * state.earthShieldPulse;
+        ctx.beginPath();
+        ctx.arc(earthX, earthY + 70, earthR + 8, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      for (let i = state.asteroids.length - 1; i >= 0; i--) {
+        const ast = state.asteroids[i];
+
+        if (ast.isFrozen) {
+          ast.freezeTimer--;
+          if (ast.freezeTimer <= 0) ast.isFrozen = false;
+        } else {
+          if (ast.y < ast.targetY) {
+            ast.y += ast.vy;
+          }
+          ast.x += ast.vx;
+          if (ast.x < 25 || ast.x > width - 25) ast.vx *= -1;
+          ast.angle += ast.vRot;
+        }
+
+        if (ast.hp <= 0) {
+          destroyAsteroid(ast);
+          continue;
+        }
+
+        ctx.save();
+        ctx.translate(ast.x, ast.y);
+        ctx.rotate(ast.angle);
+
+        ctx.fillStyle = ast.isFrozen ? '#38bdf8' : ast.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, ast.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = ast.isFrozen ? '#bae6fd' : '#1e293b';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.restore();
+
+        if (ast.maxHp > 1) {
+          const barW = Math.max(20, ast.size * 1.5);
+          const barH = 3;
+          const barX = ast.x - barW / 2;
+          const barY = ast.y - ast.size - 8;
+          const hpRate = Math.max(0, ast.hp / ast.maxHp);
+
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+          ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+
+          ctx.fillStyle = hpRate > 0.5 ? '#22c55e' : (hpRate > 0.25 ? '#f59e0b' : '#ef4444');
+          ctx.fillRect(barX, barY, barW * hpRate, barH);
+        }
+
+        if (state.godJackpotActive || state.godLockTargets.includes(ast)) {
+          ctx.save();
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.arc(ast.x, ast.y, ast.size + 8, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.fillStyle = '#ef4444';
+          ctx.font = '9px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('LOCK-ON', ast.x, ast.y - ast.size - 10);
+          ctx.restore();
+        }
+      }
+
+      for (let i = state.projectiles.length - 1; i >= 0; i--) {
+        const p = state.projectiles[i];
+
+        // 포도 모탄 분열 타이머 처리
+        if (p.type === 'cluster_parent') {
+          p.timer--;
+        }
+
+        if (p.type === 'missile' && p.target && state.asteroids.includes(p.target)) {
+          const dx = p.target.x - p.x;
+          const dy = p.target.y - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 1) {
+            p.vx += (dx / dist) * 0.8;
+            p.vy += (dy / dist) * 0.8;
+            const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+            if (spd > 11) {
+              p.vx = (p.vx / spd) * 11;
+              p.vy = (p.vy / spd) * 11;
+            }
+          }
+        }
+
+        p.x += p.vx;
+        p.y += p.vy;
+
+        let hit = false;
+        for (let j = state.asteroids.length - 1; j >= 0; j--) {
+          const ast = state.asteroids[j];
+          const dist = Math.hypot(p.x - ast.x, p.y - ast.y);
+          if (dist < p.size + ast.size) {
+            ast.hp -= p.damage;
+            hit = true;
+            createExplosion(p.x, p.y, p.color, 6);
+            if (ast.hp <= 0) destroyAsteroid(ast);
+            break;
+          }
+        }
+
+        // 포도 모탄이 적에 맞거나 타이머가 끝나면 7개의 자탄으로 화려하게 분열!
+        if (p.type === 'cluster_parent' && (hit || p.timer <= 0)) {
+          createExplosion(p.x, p.y, '#c084fc', 14);
+          sound.playExplosion();
+          for (let k = 0; k < 7; k++) {
+            const angle = (Math.PI * 2 / 7) * k + (Math.random() - 0.5) * 0.4;
+            const spd = Math.random() * 4 + 3;
+            state.projectiles.push({
+              x: p.x,
+              y: p.y,
+              vx: Math.cos(angle) * spd,
+              vy: Math.sin(angle) * spd - 1.5,
+              size: 4,
+              color: '#d8b4fe',
+              damage: 1.5,
+              type: 'direct'
+            });
+          }
+          state.projectiles.splice(i, 1);
+          continue;
+        }
+
+        if (hit && p.type !== 'pierce') {
+          state.projectiles.splice(i, 1);
+          continue;
+        }
+
+        if (p.y < -20 || p.y > fieldH + 20 || p.x < -20 || p.x > width + 20) {
+          state.projectiles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const pt = state.particles[i];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.alpha -= pt.decay;
+
+        if (pt.alpha <= 0) {
+          state.particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.fillStyle = pt.color;
+        ctx.globalAlpha = Math.max(0, pt.alpha);
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+      }
+
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, fieldH);
+      ctx.lineTo(width, fieldH);
+      ctx.stroke();
+    }
+
+    function renderSlotMachine() {
+      const slotTop = height * 0.52;
+      const slotH = height - slotTop;
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, slotTop, width, slotH);
+
+      const marginX = 20;
+      const marginY = 16;
+      const boardW = width - marginX * 2;
+      const boardH = slotH - marginY * 2;
+      const cellW = boardW / 3;
+      const cellH = boardH / 3;
+
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          const cx = marginX + c * cellW;
+          const cy = slotTop + marginY + r * cellH;
+
+          ctx.fillStyle = '#1e293b';
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 1.5;
+
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(cx + 4, cy + 4, cellW - 8, cellH - 8, 12);
+          } else {
+            ctx.rect(cx + 4, cy + 4, cellW - 8, cellH - 8);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          if (state.reelsSpinning[c]) {
+            const tempSym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+            ctx.font = `${cellH * 0.44}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.globalAlpha = 0.5;
+            ctx.fillText(tempSym.icon, cx + cellW / 2, cy + cellH / 2);
+            ctx.globalAlpha = 1.0;
+          } else {
+            const sym = state.grid[r][c];
+            if (sym) {
+              ctx.font = `${cellH * 0.48}px sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(sym.icon, cx + cellW / 2, cy + cellH / 2);
+            }
+          }
+        }
+      }
+
+      if (state.allCompletedLines.length > 0) {
+        state.allCompletedLines.forEach(line => {
+          const [p1, p2, p3] = line.points;
+          const x1 = marginX + p1[1] * cellW + cellW / 2;
+          const y1 = slotTop + marginY + p1[0] * cellH + cellH / 2;
+          const x3 = marginX + p3[1] * cellW + cellW / 2;
+          const y3 = slotTop + marginY + p3[0] * cellH + cellH / 2;
+
+          ctx.save();
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 7;
+          ctx.shadowColor = '#facc15';
+          ctx.shadowBlur = 14;
+          ctx.lineCap = 'round';
+
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x3, y3);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
+    }
+
+    let lastFrameTime = 0;
+    function loop(timestamp) {
+      if (!lastFrameTime) lastFrameTime = timestamp;
+      const deltaTime = timestamp - lastFrameTime;
+      lastFrameTime = timestamp;
+
+      updateDifficulty(deltaTime);
+
+      if (state.hitStopFrames > 0) {
+        state.hitStopFrames--;
+        requestAnimationFrame(loop);
+        return;
+      }
+
+      ctx.clearRect(0, 0, width, height);
+
+      renderBattlefield(timestamp);
+      renderSlotMachine();
+
+      if (timestamp - lastAsteroidSpawn > state.spawnInterval) {
+        spawnAsteroid();
+        lastAsteroidSpawn = timestamp;
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    function updateOddsModalList() {
+      const oddsList = document.getElementById('odds-list');
+      if (!oddsList) return;
+      oddsList.innerHTML = '';
+
+      const totalWeight = SYMBOLS.reduce((sum, s) => sum + s.weight, 0);
+
+      SYMBOLS.forEach(sym => {
+        const pct = ((sym.weight / totalWeight) * 100).toFixed(1);
+        const item = document.createElement('div');
+        item.className = 'p-2.5 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between';
+        item.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <span class="text-2xl">${sym.icon}</span>
+            <div>
+              <div class="font-bold text-white">${sym.name} <span class="text-[10px] text-amber-400 font-scifi">LV.${sym.level}</span></div>
+              <div class="text-[10px] text-slate-400">${sym.desc}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-sm font-bold font-scifi text-sky-400">${pct}%</div>
+            <div class="text-[9px] text-slate-500 font-mono">${sym.weight} WT</div>
+          </div>
+        `;
+        oddsList.appendChild(item);
+      });
+    }
+
+    document.getElementById('btn-spin').addEventListener('click', spin);
+
+    document.getElementById('btn-auto').addEventListener('click', () => {
+      state.isAuto = !state.isAuto;
+      const btn = document.getElementById('btn-auto');
+      if (state.isAuto) {
+        btn.textContent = 'AUTO: ON';
+        btn.className = 'px-3 py-2.5 bg-sky-600 text-xs font-scifi font-bold text-white rounded-xl border border-sky-400';
+        if (!state.isSpinning) spin();
+      } else {
+        btn.textContent = 'AUTO: OFF';
+        btn.className = 'px-3 py-2.5 bg-slate-800 text-xs font-scifi font-bold text-slate-300 rounded-xl border border-slate-700';
+      }
+    });
+
+    document.getElementById('btn-speed').addEventListener('click', () => {
+      state.isFast = !state.isFast;
+      const btn = document.getElementById('btn-speed');
+      btn.textContent = state.isFast ? '2X SPEED' : '1X SPEED';
+      btn.className = state.isFast 
+        ? 'px-3 py-2.5 bg-amber-600 text-xs font-scifi font-bold text-white rounded-xl border border-amber-400'
+        : 'px-3 py-2.5 bg-slate-800 text-xs font-scifi font-bold text-sky-400 rounded-xl border border-slate-700';
+    });
+
+    document.getElementById('btn-sound').addEventListener('click', () => {
+      const enabled = sound.toggle();
+      document.getElementById('btn-sound').textContent = enabled ? '🔊 ON' : '🔇 OFF';
+    });
+
+    document.getElementById('btn-odds').addEventListener('click', () => {
+      updateOddsModalList();
+      const modal = document.getElementById('modal-odds');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    });
+
+    document.getElementById('btn-close-odds').addEventListener('click', () => {
+      const modal = document.getElementById('modal-odds');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    });
+
+    document.getElementById('btn-restart').addEventListener('click', () => {
+      state.score = 0;
+      state.level = 1;
+      state.exp = 0;
+      state.expNext = 10;
+      state.linesCompleted = 0;
+      state.isGameOver = false;
+      state.isPausedForUpgrade = false;
+      state.gameTimeElapsed = 0;
+      state.spawnInterval = 1300;
+      state.speedMultiplier = 1.0;
+      state.asteroids = [];
+      state.projectiles = [];
+      state.particles = [];
+
+      SYMBOLS.forEach(s => {
+        s.weight = s.baseWeight;
+        s.level = 1;
+      });
+
+      document.getElementById('score-display').textContent = '0';
+      updateExpUI();
+      updateThreatUI();
+
+      document.getElementById('modal-gameover').classList.add('hidden');
+      document.getElementById('modal-gameover').classList.remove('flex');
+
+      for (let i = 0; i < 6; i++) spawnAsteroid();
+    });
+
+    window.onload = () => {
+      resize();
+      updateOddsModalList();
+      for (let i = 0; i < 7; i++) {
+        spawnAsteroid();
+      }
+      requestAnimationFrame(loop);
+    };
+  </script>
+</body>
+</html>
